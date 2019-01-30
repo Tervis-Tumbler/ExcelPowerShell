@@ -5,22 +5,25 @@ function New-ExcelInstance {
 
 function Stop-ExcelInstance {
     param (
-        [Parameter(Mandatory)][Microsoft.Office.Interop.Excel.ApplicationClass]$ExcelInstance,
+        [Parameter(Mandatory)][ref]$ExcelInstance,
         [switch]$SaveBeforeQuit
     )
 
     if ($SaveBeforeQuit) {
-        for ($i = 1; $i -le $ExcelIntance.Workbooks.Count; $i++) {
-            $ExcelInstance.Workbooks[$i].Save()
+        for ($i = 1; $i -le $ExcelInstance.Value.Workbooks.Count; $i++) {
+            $ExcelInstance.Value.Workbooks[$i].Save()
         }
     }
-    $ExcelInstance.Quit()
+    $ExcelInstance.Value.Quit()
+    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($ExcelInstance.Value)
+    [System.GC]::WaitForPendingFinalizers()
+    [System.GC]::Collect()
 }
 
 function Open-ExcelFile {
     # https://docs.microsoft.com/en-us/office/vba/api/excel.workbooks.open
     param (
-        [Parameter(Mandatory)][Microsoft.Office.Interop.Excel.ApplicationClass]$ExcelInstance,
+        [Parameter(Mandatory)][ref]$ExcelInstance,
         [Parameter(Mandatory)]$ExcelFilePath,
         $UpdateLinks = $false,
         $ReadOnly = $false,
@@ -30,7 +33,7 @@ function Open-ExcelFile {
         $IgnoreReadOnlyRecommended
     )
 
-    $Workbook = $ExcelInstance.Workbooks.Open(
+    $Workbook = $ExcelInstance.Value.Workbooks.Open(
             $ExcelFilePath, $UpdateLinks, $ReadOnly, $Format, $Password, $WriteResPassword, $IgnoreReadOnlyRecommended
         )
     return $Workbook
@@ -38,17 +41,17 @@ function Open-ExcelFile {
 
 function Update-ExcelFile {
     param (
-        [Parameter(Mandatory)]$Workbook
+        [Parameter(Mandatory)][ref]$Workbook
     )
 
-    $LinkSources = $Workbook.LinkSources()
+    $LinkSources = $Workbook.Value.LinkSources()
     $i = 0 
     foreach ($Link in $LinkSources) {
         Write-Progress -Activity "Excel file update" -PercentComplete ($i * 100 / $LinkSources.count) -Status "Updating links" -CurrentOperation $Link
-        $Workbook.UpdateLink($Link, 1)
+        $Workbook.Value.UpdateLink($Link, 1)
         $i++
     }
 
     Write-Progress -Activity "Excel file update" -Status "Refreshing pivot tables"
-    $Workbook.RefreshAll()
+    $Workbook.Value.RefreshAll()
 }
