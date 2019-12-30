@@ -54,4 +54,5 @@ function Update-ExcelFile {
 
     Write-Progress -Activity "Excel file update" -Status "Refreshing pivot tables"
     $Workbook.Value.RefreshAll()
+    Write-Progress -Activity "Excel file update" -Completed
 }
